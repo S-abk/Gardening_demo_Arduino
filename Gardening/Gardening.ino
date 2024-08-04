@@ -451,6 +451,31 @@ void loop()
     default:
         break;
     }
+
+    // Read temperature and humidity from the DHT sensor
+    float temperature = dht.readTemperature();
+    float humidity = dht.readHumidity();
+    
+    // Read moisture level from the moisture sensor
+    int moisture = analogRead(MoisturePin);
+
+    // Check if any reads failed and exit early (to try again next loop)
+    if (isnan(temperature) || isnan(humidity)) {
+        Serial.println("Failed to read from DHT sensor!");
+        return;
+    }
+
+    // Send data over Serial in CSV format (Temperature, Humidity, Moisture)
+    Serial.print(temperature);
+    Serial.print(",");
+    Serial.print(humidity);
+    Serial.print(",");
+    Serial.println(moisture);
+
+    // Other functionalities like watering logic can be added here
+
+    delay(2000); // Wait for 2 seconds before the next loop
+
 }
 
 void WaterPumpOn()
