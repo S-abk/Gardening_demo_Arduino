@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Garden Monitor</title>
-    <script src="https://cdn.socket.io/socket.io.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io(); // Connect to the server
+    </script>    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: Arial, sans-serif; }
         .sensor-data { margin-bottom: 20px; }
@@ -23,7 +25,6 @@
     <script>
         let updateTimeout; // Timeout for the next update
         const updateInterval = 5000; // Process updates every 5 seconds    
-        const socket = io();
         const ctx = document.getElementById('sensorChart').getContext('2d');
         const sensorChart = new Chart(ctx, {
             type: 'line',
