@@ -1,24 +1,25 @@
+#include <Arduino.h>
+#include <U8g2lib.h>
+ 
+#ifdef U8X8_HAVE_HW_SPI
+#include <SPI.h>
+#endif
+#ifdef U8X8_HAVE_HW_I2C
 #include <Wire.h>
-#include <SeeedOLED.h>
-
-void setup() {
-  // Initialize the OLED display
-  SeeedOled.init();  // Initialize OLED
-  SeeedOled.clearDisplay();  // Clear the display
-  SeeedOled.setNormalDisplay();  // Set to normal display (not inverted)
-  SeeedOled.setPageMode();  // Set display to page mode
-  
-  // Display a test message
-  SeeedOled.setTextXY(0, 0);  // Set cursor to row 0, column 0
-  SeeedOled.putString("OLED Display Test");
-  
-  SeeedOled.setTextXY(2, 0);  // Move to row 2, column 0
-  SeeedOled.putString("Arduino Connected!");
-  
-  SeeedOled.setTextXY(4, 0);  // Move to row 4, column 0
-  SeeedOled.putString("Testing...");
+#endif
+ 
+U8G2_SSD1306_128X64_ALT0_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE); // SSD1306 and SSD1308Z are compatible
+ 
+// U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ SCL, /* data=*/ SDA, /* reset=*/ U8X8_PIN_NONE);    //Low spped I2C
+ 
+void setup(void) {
+  u8g2.begin();
 }
-
-void loop() {
-  // You can add more dynamic tests here if needed
+ 
+void loop(void) {
+  u8g2.clearBuffer();                   // clear the internal memory
+  u8g2.setFont(u8g2_font_ncenB08_tr);   // choose a suitable font
+  u8g2.drawStr(0,10,"Hello World!");    // write something to the internal memory
+  u8g2.sendBuffer();                    // transfer internal memory to the display
+  delay(1000);  
 }
