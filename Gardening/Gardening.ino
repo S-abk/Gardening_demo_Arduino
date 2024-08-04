@@ -192,8 +192,7 @@ void setup()
 }
 
 
-void loop() 
-{
+void loop() {
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     switch (WorkingStatus) {
@@ -415,7 +414,7 @@ void loop()
             if (Volume >= SystemLimens.WaterVolume) {
                 SwitchtoStandbyFlag = 1;
             }
-//            
+
             // sprintf(buffer,"Press Btn toSTOP");
             // SeeedOled.setTextXY(7,0);
             // SeeedOled.putString(buffer);
