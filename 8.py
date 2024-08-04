@@ -16,13 +16,17 @@ def read_serial():
     while True:
         if ser.in_waiting > 0:
             line = ser.readline().decode('utf-8').rstrip()
-            try:
-                temperature, humidity, moisture = map(float, line.split(','))
-                sensor_data['temperature'] = temperature
-                sensor_data['humidity'] = humidity
-                sensor_data['moisture'] = moisture
-            except ValueError:
-                print("Error parsing line:", line)
+            # Skip lines that don't contain the expected number of numeric values
+            if ',' in line and line.replace(',', '').replace('.', '').isdigit():
+                try:
+                    temperature, humidity, moisture = map(float, line.split(','))
+                    sensor_data['temperature'] = temperature
+                    sensor_data['humidity'] = humidity
+                    sensor_data['moisture'] = moisture
+                except ValueError:
+                    print("Error parsing line:", line)
+            else:
+                print("Ignoring line:", line)
 
 @app.route('/')
 def index():
