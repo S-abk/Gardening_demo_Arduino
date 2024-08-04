@@ -38,9 +38,10 @@ def index():
 
 @app.route('/toggle_watering', methods=['POST'])
 def toggle_watering():
-    # Logic to toggle watering system
+    # Send 'T' to Arduino to toggle the watering system
+    ser.write(b'T')  # Send the 'T' character over serial
+    # Update local status (assumed it matches the device's new state)
     sensor_data['watering_status'] = not sensor_data['watering_status']
-    # Control hardware here, e.g., GPIO for relay
     socketio.emit('sensor_update', sensor_data)
     return jsonify({'status': 'On' if sensor_data['watering_status'] else 'Off'})
 

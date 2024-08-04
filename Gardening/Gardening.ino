@@ -163,6 +163,7 @@ void setup()
     
     /* Init Relay      */
     pinMode(RelayPin,OUTPUT);
+    digitalWrite(RelayPin, LOW); // Ensure watering is off initially
     /* The First time power on to write the default data to EEPROM */
     if (EEPROM.read(EEPROMAddress) == 0xff) {
         EEPROM.write(EEPROMAddress,0x00);
@@ -474,6 +475,14 @@ void loop()
 
     // Other functionalities like watering logic can be added here
 
+    // Check for commands from Raspberry Pi
+    if (Serial.available() > 0) {
+        char command = Serial.read();
+        if (command == 'T') {
+            toggleWatering();
+        }
+    }
+
     delay(2000); // Wait for 2 seconds before the next loop
 
 }
@@ -488,6 +497,13 @@ void WaterPumpOff()
     digitalWrite(RelayPin,RelayOff);
 }
 
+
+void toggleWatering() {
+    wateringStatus = !wateringStatus; // Toggle the watering status
+    digitalWrite(RelayPin, wateringStatus ? HIGH : LOW); // Turn the relay on or off
+    Serial.print("Watering: ");
+    Serial.println(wateringStatus ? "On" : "Off"); // Print the watering status
+}
 
 void DisplayUVIndex()
 {
