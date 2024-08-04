@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 import threading
 import serial
 
@@ -12,17 +12,26 @@ sensor_data = {
 }
 
 def read_serial():
-    ser = serial.Serial('/dev/ttyACM0', 9600)
+    ser = serial.Serial('/dev/ttyUSB0', 9600)  # Adjust the port as necessary
     while True:
         if ser.in_waiting > 0:
             line = ser.readline().decode('utf-8').rstrip()
-            temperature, humidity, moisture = map(float, line.split(','))
-            sensor_data['temperature'] = temperature
-            sensor_data['humidity'] = humidity
-            sensor_data['moisture'] = moisture
+            try:
+                temperature, humidity, moisture = map(float, line.split(','))
+                sensor_data['temperature'] = temperature
+                sensor_data['humidity'] = humidity
+                sensor_data['moisture'] = moisture
+            except ValueError:
+                print("Error parsing line:", line)
+
+@app.route('/')
+def index():
+    # Serve the index.html template
+    return render_template('index.html')
 
 @app.route('/data')
 def get_data():
+    # Provide sensor data as JSON
     return jsonify(sensor_data)
 
 if __name__ == '__main__':

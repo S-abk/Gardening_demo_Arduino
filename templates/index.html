@@ -1,3 +1,4 @@
+<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,8 +8,8 @@
         async function fetchData() {
             const response = await fetch('/data');
             const data = await response.json();
-            document.getElementById('temperature').innerText = data.temperature;
-            document.getElementById('humidity').innerText = data.humidity;
+            document.getElementById('temperature').innerText = data.temperature.toFixed(2);
+            document.getElementById('humidity').innerText = data.humidity.toFixed(2);
             document.getElementById('moisture').innerText = data.moisture;
         }
 
@@ -17,8 +18,8 @@
 </head>
 <body>
     <h1>Garden Monitor</h1>
-    <p>Temperature: <span id="temperature">0</span> °C</p>
-    <p>Humidity: <span id="humidity">0</span> %</p>
+    <p>Temperature: <span id="temperature">0.00</span> °C</p>
+    <p>Humidity: <span id="humidity">0.00</span> %</p>
     <p>Moisture: <span id="moisture">0</span></p>
 </body>
 </html>
