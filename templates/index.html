@@ -22,7 +22,6 @@
     </div>
     <canvas id="sensorChart" width="400" height="200"></canvas>
     <script>
-        import { Server } from "socket.io"; // Import the Server class from Socket
         const socket = io(); // Initialize Socket.IO
         let updateTimeout;
         const updateInterval = 5000; // Process updates every 5 seconds
