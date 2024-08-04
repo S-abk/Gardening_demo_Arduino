@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>Garden Monitor</title>
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-      const socket = io(); // Connect to the server
-    </script>    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Load the local Socket.IO client script -->
+    <script src="{{ url_for('static', filename='socket.io.min.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: Arial, sans-serif; }
         .sensor-data { margin-bottom: 20px; }
@@ -18,13 +17,16 @@
         <p>Temperature: <span id="temperature">0.00</span> °C</p>
         <p>Humidity: <span id="humidity">0.00</span> %</p>
         <p>Moisture: <span id="moisture">0</span></p>
-        <p id="watering-status">Watering Status: Off</p>
+        <p>Watering Status: <span id="watering-status">Off</span></p>
         <button onclick="toggleWatering()">Toggle Watering</button>
     </div>
     <canvas id="sensorChart" width="400" height="200"></canvas>
     <script>
-        let updateTimeout; // Timeout for the next update
-        const updateInterval = 5000; // Process updates every 5 seconds    
+        import { Server } from "socket.io"; // Import the Server class from Socket
+        const socket = io(); // Initialize Socket.IO
+        let updateTimeout;
+        const updateInterval = 5000; // Process updates every 5 seconds
+
         const ctx = document.getElementById('sensorChart').getContext('2d');
         const sensorChart = new Chart(ctx, {
             type: 'line',
@@ -55,28 +57,28 @@
         });
 
         socket.on('sensor_update', function(data) {
-        if (updateTimeout) clearTimeout(updateTimeout);
-        updateTimeout = setTimeout(() => {
-            document.getElementById('temperature').innerText = data.temperature.toFixed(2);
-            document.getElementById('humidity').innerText = data.humidity.toFixed(2);
-            document.getElementById('moisture').innerText = data.moisture;
-            document.getElementById('watering-status').innerText = data.watering_status ? 'On' : 'Off';
+            if (updateTimeout) clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(() => {
+                document.getElementById('temperature').innerText = data.temperature.toFixed(2);
+                document.getElementById('humidity').innerText = data.humidity.toFixed(2);
+                document.getElementById('moisture').innerText = data.moisture;
+                document.getElementById('watering-status').innerText = data.watering_status ? 'On' : 'Off';
 
-            // Update chart
-            const currentTime = new Date();
-            sensorChart.data.labels.push(currentTime);
-            sensorChart.data.datasets[0].data.push(data.temperature);
-            sensorChart.data.datasets[1].data.push(data.humidity);
+                // Update chart
+                const currentTime = new Date();
+                sensorChart.data.labels.push(currentTime);
+                sensorChart.data.datasets[0].data.push(data.temperature);
+                sensorChart.data.datasets[1].data.push(data.humidity);
 
-            // Keep only the last 10 minutes of data
-            if (sensorChart.data.labels.length > 10) {
-                sensorChart.data.labels.shift();
-                sensorChart.data.datasets[0].data.shift();
-                sensorChart.data.datasets[1].data.shift();
-            }
-            sensorChart.update();
-        }, updateInterval);
-    });
+                // Keep only the last 10 minutes of data
+                if (sensorChart.data.labels.length > 10) {
+                    sensorChart.data.labels.shift();
+                    sensorChart.data.datasets[0].data.shift();
+                    sensorChart.data.datasets[1].data.shift();
+                }
+                sensorChart.update();
+            }, updateInterval);
+        });
 
         async function toggleWatering() {
             const response = await fetch('/toggle_watering', { method: 'POST' });
