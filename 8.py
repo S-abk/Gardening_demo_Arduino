@@ -12,7 +12,7 @@ sensor_data = {
 }
 
 def read_serial():
-    ser = serial.Serial('/dev/ttyUSB0', 9600)  # Adjust the port as necessary
+    ser = serial.Serial('/dev/ACM0', 9600)  # Adjust the port as necessary
     while True:
         if ser.in_waiting > 0:
             line = ser.readline().decode('utf-8').rstrip()
