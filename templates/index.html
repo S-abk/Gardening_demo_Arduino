@@ -1,25 +1,82 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Garden Monitor</title>
-    <script>
-        async function fetchData() {
-            const response = await fetch('/data');
-            const data = await response.json();
-            document.getElementById('temperature').innerText = data.temperature.toFixed(2);
-            document.getElementById('humidity').innerText = data.humidity.toFixed(2);
-            document.getElementById('moisture').innerText = data.moisture;
-        }
-
-        setInterval(fetchData, 2000);
-    </script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .sensor-data { margin-bottom: 20px; }
+    </style>
 </head>
 <body>
     <h1>Garden Monitor</h1>
-    <p>Temperature: <span id="temperature">0.00</span> °C</p>
-    <p>Humidity: <span id="humidity">0.00</span> %</p>
-    <p>Moisture: <span id="moisture">0</span></p>
+    <div class="sensor-data">
+        <p>Temperature: <span id="temperature">0.00</span> °C</p>
+        <p>Humidity: <span id="humidity">0.00</span> %</p>
+        <p>Moisture: <span id="moisture">0</span></p>
+        <p>Watering Status: <span id="watering-status">Off</span></p>
+        <button onclick="toggleWatering()">Toggle Watering</button>
+    </div>
+    <canvas id="sensorChart" width="400" height="200"></canvas>
+    <script>
+        const socket = io();
+        const ctx = document.getElementById('sensorChart').getContext('2d');
+        const sensorChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], // Time labels
+                datasets: [{
+                    label: 'Temperature (°C)',
+                    data: [],
+                    borderColor: 'rgb(255, 99, 132)',
+                    fill: false
+                }, {
+                    label: 'Humidity (%)',
+                    data: [],
+                    borderColor: 'rgb(54, 162, 235)',
+                    fill: false
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'minute'
+                        }
+                    }
+                }
+            }
+        });
+
+        socket.on('sensor_update', function(data) {
+            const currentTime = new Date();
+            document.getElementById('temperature').innerText = data.temperature.toFixed(2);
+            document.getElementById('humidity').innerText = data.humidity.toFixed(2);
+            document.getElementById('moisture').innerText = data.moisture;
+            document.getElementById('watering-status').innerText = data.watering_status ? 'On' : 'Off';
+
+            // Update chart
+            sensorChart.data.labels.push(currentTime);
+            sensorChart.data.datasets[0].data.push(data.temperature);
+            sensorChart.data.datasets[1].data.push(data.humidity);
+
+            // Keep only the last 10 minutes of data
+            if (sensorChart.data.labels.length > 10) {
+                sensorChart.data.labels.shift();
+                sensorChart.data.datasets[0].data.shift();
+                sensorChart.data.datasets[1].data.shift();
+            }
+            sensorChart.update();
+        });
+
+        async function toggleWatering() {
+            const response = await fetch('/toggle_watering', { method: 'POST' });
+            const result = await response.json();
+            document.getElementById('watering-status').innerText = result.status;
+        }
+    </script>
 </body>
 </html>

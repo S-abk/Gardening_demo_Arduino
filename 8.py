@@ -1,28 +1,32 @@
-from flask import Flask, jsonify, render_template
+from flask import Flask, render_template, jsonify
+from flask_socketio import SocketIO, emit
 import threading
 import serial
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 
 # Global variables to store sensor data
 sensor_data = {
     'temperature': 0.0,
     'humidity': 0.0,
-    'moisture': 0
+    'moisture': 0,
+    'watering_status': False
 }
 
 def read_serial():
-    ser = serial.Serial('/dev/ttyACM0', 9600)  # Adjust the port as necessary
+    ser = serial.Serial('/dev/ttyUSB0', 9600)  # Adjust the port as necessary
     while True:
         if ser.in_waiting > 0:
             line = ser.readline().decode('utf-8').rstrip()
-            # Skip lines that don't contain the expected number of numeric values
-            if ',' in line and line.replace(',', '').replace('.', '').isdigit():
+            # Skip non-numeric lines and initial messages
+            if ',' in line and all(char.isdigit() or char in '.,' for char in line):
                 try:
                     temperature, humidity, moisture = map(float, line.split(','))
                     sensor_data['temperature'] = temperature
                     sensor_data['humidity'] = humidity
                     sensor_data['moisture'] = moisture
+                    socketio.emit('sensor_update', sensor_data)
                 except ValueError:
                     print("Error parsing line:", line)
             else:
@@ -30,15 +34,17 @@ def read_serial():
 
 @app.route('/')
 def index():
-    # Serve the index.html template
     return render_template('index.html')
 
-@app.route('/data')
-def get_data():
-    # Provide sensor data as JSON
-    return jsonify(sensor_data)
+@app.route('/toggle_watering', methods=['POST'])
+def toggle_watering():
+    # Logic to toggle watering system
+    sensor_data['watering_status'] = not sensor_data['watering_status']
+    # Control hardware here, e.g., GPIO for relay
+    socketio.emit('sensor_update', sensor_data)
+    return jsonify({'status': 'On' if sensor_data['watering_status'] else 'Off'})
 
 if __name__ == '__main__':
     serial_thread = threading.Thread(target=read_serial)
     serial_thread.start()
-    app.run(host='0.0.0.0', port=5000)
+    socketio.run(app, host='0.0.0.0', port=5000)
