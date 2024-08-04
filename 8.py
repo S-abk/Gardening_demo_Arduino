@@ -48,4 +48,4 @@ def toggle_watering():
 if __name__ == '__main__':
     serial_thread = threading.Thread(target=read_serial)
     serial_thread.start()
-    socketio.run(app, host='0.0.0.0', port=5000)
+    socketio.run(app, host='0.0.0.0', port=5000, use_reloader=False, debug=False)

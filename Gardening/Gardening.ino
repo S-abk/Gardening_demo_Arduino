@@ -452,6 +452,10 @@ void loop()
     default:
         break;
     }
+    // Read and process data only every 5 seconds
+    static unsigned long lastUpdateTime = 0;
+    if (millis() - lastUpdateTime > 5000) { // Update every 5 seconds
+        lastUpdateTime = millis();
 
     // Read temperature and humidity from the DHT sensor
     float temperature = dht.readTemperature();
