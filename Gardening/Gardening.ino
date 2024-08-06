@@ -1,6 +1,6 @@
 #include <EEPROM.h>
 #include "DHT.h"
-#include "SI114X.h" // Include the library for the SI1145 sensor
+#include "SI114X.h"
 
 // Define statuses
 enum Status {
@@ -18,6 +18,7 @@ enum WarningStatus {
     AirTemperWarning   = 2,
     UVIndexWarning     = 3,
     NoWaterWarning     = 4,
+    DryRunWarning      = 5,  // New warning for dry run
 };
 typedef enum WarningStatus WarningStatusType;
 WarningStatusType SystemWarning;
@@ -30,7 +31,7 @@ struct Limens {
     unsigned char DHTTemperature_Hi   = 30;
     unsigned char DHTTemperature_Low  = 0;
     unsigned char MoisHumidity_Limen  = 0;
-    float         WaterVolume         = 0.2;
+    float         WaterVolume         = 0.2; // Target water volume in liters
 };
 typedef struct Limens WorkingLimens;
 WorkingLimens SystemLimens;
@@ -39,7 +40,7 @@ WorkingLimens SystemLimens;
 #define DHTPIN          A0     
 #define MoisturePin     A1
 #define ButtonPin       2
-#define WaterflowPin    5
+#define WaterflowPin    5  // Pin for water flow sensor
 #define RelayPin        6
 
 #define OneSecond       1000
@@ -48,13 +49,17 @@ WorkingLimens SystemLimens;
 #define RelayOff        LOW
 
 #define NoWaterTimeOut  3        // 10 seconds
+#define DryRunTimeout   5000     // 5 seconds of no flow indicates dry run
 
-unsigned int  uiWaterVolume = 0;
+volatile unsigned int pulseCount = 0;
 unsigned long StartTime = 0;
 DHT dht(DHTPIN, DHT11);
 
 // Declare the SI1145 sensor object
 SI114X uvSensor;
+
+// Constants for water flow sensor
+const float calibrationFactor = 4.5;  // Calibration factor for your flow sensor
 
 void setup() {
     // Initialize serial communication
@@ -74,9 +79,22 @@ void setup() {
 
     // Initialize system status
     WorkingStatus = Standby;
+    
+    // Setup interrupt for water flow sensor
+    attachInterrupt(digitalPinToInterrupt(WaterflowPin), pulseCounter, RISING);
 }
 
 void loop() {
+    // Listen for incoming serial data
+    if (Serial.available() > 0) {
+        String command = Serial.readStringUntil('\n');
+        command.trim();  // Remove any whitespace or newline characters
+
+        if (command == "WATER") {
+            executeWatering();
+        }
+    }
+
     switch (WorkingStatus) {
         case Standby:
             if (millis() - StartTime > DataUpdateInterval) {
@@ -106,10 +124,8 @@ void loop() {
                 
                 // Check for warnings
                 if (MoisHumidity < SystemLimens.MoisHumidity_Limen) {
-                    Serial.println("Status: Watering");
-                    digitalWrite(RelayPin, RelayOn);
-                    delay(NoWaterTimeOut * OneSecond);
-                    digitalWrite(RelayPin, RelayOff);
+                    SystemWarning = NoWaterWarning;
+                    executeWatering();
                 }
                 if (DHTHumidity < SystemLimens.DHTHumidity_Low || DHTHumidity > SystemLimens.DHTHumidity_Hi) {
                     SystemWarning = AirHumidityWarning;
@@ -123,4 +139,39 @@ void loop() {
             }
             break;
     }
+}
+
+void pulseCounter() {
+    pulseCount++;
+}
+
+void executeWatering() {
+    Serial.println("Executing Watering Command");
+    pulseCount = 0;  // Reset pulse counter
+
+    unsigned long startTime = millis();
+    unsigned long lastPulseTime = millis();
+    digitalWrite(RelayPin, RelayOn);
+
+    while (true) {
+        if (pulseCount > 0) {
+            lastPulseTime = millis();  // Reset dry run timer when a pulse is detected
+            float flowRate = ((1000.0 / (millis() - startTime)) * pulseCount) / calibrationFactor; // L/min
+            float volume = (flowRate / 60) * ((millis() - startTime) / 1000.0);  // Calculate volume in liters
+
+            if (volume >= SystemLimens.WaterVolume) {
+                break;  // Stop watering when target volume is reached
+            }
+        }
+
+        // Check for dry run condition
+        if (millis() - lastPulseTime > DryRunTimeout) {
+            Serial.println("Dry Run Detected: Stopping Pump");
+            SystemWarning = DryRunWarning;
+            break;  // Stop watering if no flow is detected for too long
+        }
+    }
+
+    digitalWrite(RelayPin, RelayOff);
+    Serial.println("Watering Complete");
 }
