@@ -2,7 +2,6 @@
 #include "DHT.h"
 #include "SI114X.h"
 
-
 // Define statuses
 enum Status {
     Standby  = 0,
@@ -65,7 +64,7 @@ void setup() {
     pinMode(RelayPin, OUTPUT);
     
     // Initialize UV sensor
-    while (!SI114X.Begin()) {
+    while (!SI1145.Begin()) {
         delay(1000);
     }
 
@@ -83,7 +82,7 @@ void loop() {
                 float DHTHumidity = dht.readHumidity();
                 float DHTTemperature = dht.readTemperature();
                 int MoisHumidity = analogRead(MoisturePin) / 7;
-                int scaledUVIndex = (int)((SI114X.ReadUV() / 100.0 + 0.5) * 10); // Scale to avoid floating-point
+                int scaledUVIndex = (int)((SI1145.ReadUV() / 100.0 + 0.5) * 10); // Scale to avoid floating-point
 
                 // Adjust moisture humidity value
                 if (MoisHumidity > 100) {
