@@ -163,7 +163,6 @@ void setup()
     
     /* Init Relay      */
     pinMode(RelayPin,OUTPUT);
-    digitalWrite(RelayPin, LOW); // Ensure watering is off initially
     /* The First time power on to write the default data to EEPROM */
     if (EEPROM.read(EEPROMAddress) == 0xff) {
         EEPROM.write(EEPROMAddress,0x00);
@@ -192,7 +191,8 @@ void setup()
 }
 
 
-void loop() {
+void loop() 
+{
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     switch (WorkingStatus) {
@@ -414,7 +414,7 @@ void loop() {
             if (Volume >= SystemLimens.WaterVolume) {
                 SwitchtoStandbyFlag = 1;
             }
-
+//            
             // sprintf(buffer,"Press Btn toSTOP");
             // SeeedOled.setTextXY(7,0);
             // SeeedOled.putString(buffer);
@@ -451,43 +451,6 @@ void loop() {
     default:
         break;
     }
-    // Read and process data only every 5 seconds
-    static unsigned long lastUpdateTime = 0;
-    if (millis() - lastUpdateTime > 5000) { // Update every 5 seconds
-        lastUpdateTime = millis();
-
-    // Read temperature and humidity from the DHT sensor
-    float temperature = dht.readTemperature();
-    float humidity = dht.readHumidity();
-    
-    // Read moisture level from the moisture sensor
-    int moisture = analogRead(MoisturePin);
-
-    // Check if any reads failed and exit early (to try again next loop)
-    if (isnan(temperature) || isnan(humidity)) {
-        Serial.println("Failed to read from DHT sensor!");
-        return;
-    }
-
-    // Send data over Serial in CSV format (Temperature, Humidity, Moisture)
-    Serial.print(temperature);
-    Serial.print(",");
-    Serial.print(humidity);
-    Serial.print(",");
-    Serial.println(moisture);
-
-    // Other functionalities like watering logic can be added here
-
-    // Check for commands from Raspberry Pi
-    if (Serial.available() > 0) {
-        char command = Serial.read();
-        if (command == 'T') {
-            toggleWatering();
-        }
-    }
-
-    delay(2000); // Wait for 2 seconds before the next loop
-
 }
 
 void WaterPumpOn()
@@ -500,13 +463,6 @@ void WaterPumpOff()
     digitalWrite(RelayPin,RelayOff);
 }
 
-
-void toggleWatering() {
-    wateringStatus = !wateringStatus; // Toggle the watering status
-    digitalWrite(RelayPin, wateringStatus ? HIGH : LOW); // Turn the relay on or off
-    Serial.print("Watering: ");
-    Serial.println(wateringStatus ? "On" : "Off"); // Print the watering status
-}
 
 void DisplayUVIndex()
 {
@@ -870,3 +826,10 @@ void EncoderRotate()
 }
 
 
+void printDetails() {
+    // Example details to print
+    Serial.println("Temperature: 23°C");
+    Serial.println("Humidity: 45%");
+    Serial.println("Soil Moisture: 60%");
+    // Add more details as needed
+}
