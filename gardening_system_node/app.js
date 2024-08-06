@@ -3,7 +3,7 @@ const SerialPort = require('serialport');
 const Readline = require('@serialport/parser-readline');
 
 const app = express();
-const port = new SerialPort('/dev/ttyUSB0', { baudRate: 9600 }); // Adjust the port name as necessary
+const port = new SerialPort('/dev/ttyACM0', { baudRate: 9600 }); // Adjust the port name as necessary
 const parser = port.pipe(new Readline({ delimiter: '\n' }));
 
 let recentData = {
