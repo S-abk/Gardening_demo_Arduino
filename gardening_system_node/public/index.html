@@ -1,66 +1,178 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gardening System Monitor</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@2.0.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/luxon"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
-</head>
-<body>
-    <h1>Gardening System Monitor</h1>
-    <canvas id="myChart" width="400" height="200"></canvas>
-    <script>
-        // Register the streaming plugin with Chart.js
-        Chart.register(ChartStreaming);
-
-        const ctx = document.getElementById('myChart').getContext('2d');
-        const chart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                datasets: [{
-                    label: 'Temperature (°C)',
-                    borderColor: 'rgb(255, 99, 132)',
-                    data: []
-                }, {
-                    label: 'Humidity (%)',
-                    borderColor: 'rgb(54, 162, 235)',
-                    data: []
-                }]
-            },
-            options: {
-                scales: {
-                    x: {
-                        type: 'realtime',
-                        realtime: {
-                            delay: 2000,
-                            onRefresh: chart => {
-                                fetch('/data')
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        const now = Date.now();
-                                        chart.data.datasets[0].data.push({
-                                            x: now,
-                                            y: data.temperature
-                                        });
-                                        chart.data.datasets[1].data.push({
-                                            x: now,
-                                            y: data.humidity
-                                        });
-                                    });
-                            }
-                        },
-                        adapters: {
-                            date: {
-                                // Luxon format can be customized if needed
-                            }
-                        }
+#include <EEPROM.h>
+    #include "DHT.h"
+    #include "SI114X.h"
+    
+    // Define statuses
+    enum Status {
+        Standby  = 0,
+        Warning  = 1,
+        Watering = 3,
+    };
+    typedef enum Status Systemstatus;
+    Systemstatus WorkingStatus;
+    
+    // Define warning statuses
+    enum WarningStatus {
+        NoWarning          = 0,
+        AirHumidityWarning = 1,
+        AirTemperWarning   = 2,
+        UVIndexWarning     = 3,
+        NoWaterWarning     = 4,
+        DryRunWarning      = 5,  // New warning for dry run
+    };
+    typedef enum WarningStatus WarningStatusType;
+    WarningStatusType SystemWarning;
+    
+    // Define limits
+    struct Limens {
+        unsigned char UVIndex_Limen       = 9;
+        unsigned char DHTHumidity_Hi      = 60;
+        unsigned char DHTHumidity_Low     = 0;
+        unsigned char DHTTemperature_Hi   = 30;
+        unsigned char DHTTemperature_Low  = 0;
+        unsigned char MoisHumidity_Limen  = 0;
+        float         WaterVolume         = 0.2; // Target water volume in liters
+    };
+    typedef struct Limens WorkingLimens;
+    WorkingLimens SystemLimens;
+    
+    // Pin definitions
+    #define DHTPIN          A0     
+    #define MoisturePin     A1
+    #define ButtonPin       2
+    #define WaterflowPin    5  // Pin for water flow sensor
+    #define RelayPin        6
+    
+    #define OneSecond       1000
+    #define DataUpdateInterval 10000  // 10 seconds
+    #define RelayOn         HIGH
+    #define RelayOff        LOW
+    
+    #define NoWaterTimeOut  3        // 10 seconds
+    #define DryRunTimeout   5000     // 5 seconds of no flow indicates dry run
+    
+    volatile unsigned int pulseCount = 0;
+    unsigned long StartTime = 0;
+    DHT dht(DHTPIN, DHT11);
+    
+    // Declare the SI1145 sensor object
+    SI114X uvSensor;
+    
+    // Constants for water flow sensor
+    const float calibrationFactor = 4.5;  // Calibration factor for your flow sensor
+    
+    void setup() {
+        // Initialize serial communication
+        Serial.begin(9600);
+        dht.begin();
+        
+        // Initialize sensors and relay
+        pinMode(ButtonPin, INPUT);
+        pinMode(WaterflowPin, INPUT);
+        pinMode(RelayPin, OUTPUT);
+        
+        // Initialize UV sensor
+        while (!uvSensor.Begin()) {
+            delay(1000);
+            Serial.println("Initializing SI1145...");
+        }
+    
+        // Initialize system status
+        WorkingStatus = Standby;
+        
+        // Setup interrupt for water flow sensor
+        attachInterrupt(digitalPinToInterrupt(WaterflowPin), pulseCounter, RISING);
+    }
+    
+    void loop() {
+        // Listen for incoming serial data
+        if (Serial.available() > 0) {
+            String command = Serial.readStringUntil('\n');
+            command.trim();  // Remove any whitespace or newline characters
+    
+            if (command == "WATER") {
+                executeWatering();
+            }
+        }
+    
+        switch (WorkingStatus) {
+            case Standby:
+                if (millis() - StartTime > DataUpdateInterval) {
+                    StartTime = millis();
+                    
+                    // Read sensor data
+                    float DHTHumidity = dht.readHumidity();
+                    float DHTTemperature = dht.readTemperature();
+                    int MoisHumidity = analogRead(MoisturePin) / 7;
+                    int scaledUVIndex = (int)((uvSensor.ReadUV() / 100.0 + 0.5) * 10); // Scale to avoid floating-point
+    
+                    // Adjust moisture humidity value
+                    if (MoisHumidity > 100) {
+                        MoisHumidity = 100;
+                    }
+                    
+                    // Send compact data over serial
+                    Serial.print(DHTHumidity);
+                    Serial.print(",");
+                    Serial.print(DHTTemperature);
+                    Serial.print(",");
+                    Serial.print(MoisHumidity);
+                    Serial.print(",");
+                    Serial.print(scaledUVIndex);
+                    Serial.print(",");
+                    Serial.println(SystemWarning);
+                    
+                    // Check for warnings
+                    if (MoisHumidity < SystemLimens.MoisHumidity_Limen) {
+                        SystemWarning = NoWaterWarning;
+                        executeWatering();
+                    }
+                    if (DHTHumidity < SystemLimens.DHTHumidity_Low || DHTHumidity > SystemLimens.DHTHumidity_Hi) {
+                        SystemWarning = AirHumidityWarning;
+                    }
+                    if (DHTTemperature < SystemLimens.DHTTemperature_Low || DHTTemperature > SystemLimens.DHTTemperature_Hi) {
+                        SystemWarning = AirTemperWarning;
+                    }
+                    if (scaledUVIndex > SystemLimens.UVIndex_Limen) {
+                        SystemWarning = UVIndexWarning;
                     }
                 }
+                break;
+        }
+    }
+    
+    void pulseCounter() {
+        pulseCount++;
+    }
+    
+    void executeWatering() {
+        Serial.println("Executing Watering Command");
+        pulseCount = 0;  // Reset pulse counter
+    
+        unsigned long startTime = millis();
+        unsigned long lastPulseTime = millis();
+        digitalWrite(RelayPin, RelayOn);
+    
+        while (true) {
+            if (pulseCount > 0) {
+                lastPulseTime = millis();  // Reset dry run timer when a pulse is detected
+                float flowRate = ((1000.0 / (millis() - startTime)) * pulseCount) / calibrationFactor; // L/min
+                float volume = (flowRate / 60) * ((millis() - startTime) / 1000.0);  // Calculate volume in liters
+    
+                if (volume >= SystemLimens.WaterVolume) {
+                    break;  // Stop watering when target volume is reached
+                }
             }
-        });
-    </script>
-</body>
-</html>
+    
+            // Check for dry run condition
+            if (millis() - lastPulseTime > DryRunTimeout) {
+                Serial.println("Dry Run Detected: Stopping Pump");
+                SystemWarning = DryRunWarning;
+                break;  // Stop watering if no flow is detected for too long
+            }
+        }
+    
+        digitalWrite(RelayPin, RelayOff);
+        Serial.println("Watering Complete");
+    }
+    

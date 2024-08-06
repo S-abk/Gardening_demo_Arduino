@@ -1,12 +1,9 @@
 const express = require('express');
 const SerialPort = require('serialport');
 const Readline = require('@serialport/parser-readline');
-const path = require('path');
-
-
 
 const app = express();
-const port = new SerialPort('/dev/ttyACM0', { baudRate: 9600 }); // Adjust the port name as necessary
+const port = new SerialPort('/dev/ttyACM0', { baudRate: 9600 });
 const parser = port.pipe(new Readline({ delimiter: '\n' }));
 
 let recentData = {
@@ -17,21 +14,29 @@ let recentData = {
     warning: 0
 };
 
-// Process incoming data
 parser.on('data', (line) => {
     const [humidity, temperature, moisture, uvIndex, warning] = line.split(',').map(Number);
     recentData = { humidity, temperature, moisture, uvIndex, warning };
 
     console.log('Updated Data:', recentData);
-    // Further processing or alert generation
+});
+
+app.use(express.static('public'));
+
+// Endpoint to trigger watering
+app.post('/control/water', (req, res) => {
+    port.write('WATER\n', (err) => {
+        if (err) {
+            return res.status(500).json({ status: 'Error sending command' });
+        }
+        res.json({ status: 'Watering command sent' });
+    });
 });
 
 // Serve the most recent data to clients
 app.get('/data', (req, res) => {
     res.json(recentData);
 });
-
-app.use(express.static(path.join(__dirname, 'public')));
 
 // Start the web server
 app.listen(3000, () => {
