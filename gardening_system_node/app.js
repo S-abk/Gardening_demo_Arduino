@@ -4,7 +4,7 @@ const Readline = require('@serialport/parser-readline');
 
 const app = express();
 const port = new SerialPort('/dev/ttyUSB0', { baudRate: 9600 }); // Adjust the port name as necessary
-const parser = port.pipe(new Readline({ delimiter: '\n' }));
+const parser = port.pipe(new Readline({ delimiter: '\n' })); // Set up the parser with a newline delimiter
 
 let recentData = {
     humidity: 0,
@@ -16,11 +16,15 @@ let recentData = {
 
 // Process incoming data
 parser.on('data', (line) => {
-    const [humidity, temperature, moisture, uvIndex, warning] = line.split(',').map(Number);
-    recentData = { humidity, temperature, moisture, uvIndex, warning };
+    try {
+        const [humidity, temperature, moisture, uvIndex, warning] = line.split(',').map(Number);
+        recentData = { humidity, temperature, moisture, uvIndex, warning };
 
-    console.log('Updated Data:', recentData);
-    // Further processing or alert generation
+        console.log('Updated Data:', recentData);
+        // Further processing or alert generation
+    } catch (error) {
+        console.error('Error parsing data:', error);
+    }
 });
 
 // Serve the most recent data to clients
