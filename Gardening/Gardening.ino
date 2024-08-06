@@ -1,6 +1,6 @@
 #include <EEPROM.h>
 #include "DHT.h"
-#include "SI114X.h"
+#include "SI114X.h" // Include the library for the SI1145 sensor
 
 // Define statuses
 enum Status {
@@ -53,6 +53,9 @@ unsigned int  uiWaterVolume = 0;
 unsigned long StartTime = 0;
 DHT dht(DHTPIN, DHT11);
 
+// Declare the SI1145 sensor object
+SI114X uvSensor;
+
 void setup() {
     // Initialize serial communication
     Serial.begin(9600);
@@ -64,8 +67,9 @@ void setup() {
     pinMode(RelayPin, OUTPUT);
     
     // Initialize UV sensor
-    while (!SI1145.Begin()) {
+    while (!uvSensor.Begin()) {
         delay(1000);
+        Serial.println("Initializing SI1145...");
     }
 
     // Initialize system status
@@ -82,7 +86,7 @@ void loop() {
                 float DHTHumidity = dht.readHumidity();
                 float DHTTemperature = dht.readTemperature();
                 int MoisHumidity = analogRead(MoisturePin) / 7;
-                int scaledUVIndex = (int)((SI1145.ReadUV() / 100.0 + 0.5) * 10); // Scale to avoid floating-point
+                int scaledUVIndex = (int)((uvSensor.ReadUV() / 100.0 + 0.5) * 10); // Scale to avoid floating-point
 
                 // Adjust moisture humidity value
                 if (MoisHumidity > 100) {
