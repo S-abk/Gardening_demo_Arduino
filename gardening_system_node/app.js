@@ -1,6 +1,9 @@
 const express = require('express');
 const SerialPort = require('serialport');
 const Readline = require('@serialport/parser-readline');
+const path = require('path');
+
+
 
 const app = express();
 const port = new SerialPort('/dev/ttyACM0', { baudRate: 9600 }); // Adjust the port name as necessary
@@ -27,6 +30,8 @@ parser.on('data', (line) => {
 app.get('/data', (req, res) => {
     res.json(recentData);
 });
+
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Start the web server
 app.listen(3000, () => {
