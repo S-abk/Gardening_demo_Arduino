@@ -5,16 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gardening System Monitor</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@2.0.0"></script>
 </head>
 <body>
     <h1>Gardening System Monitor</h1>
     <canvas id="myChart" width="400" height="200"></canvas>
     <script>
+        // Register the streaming plugin with Chart.js
+        Chart.register(ChartStreaming);
+
         const ctx = document.getElementById('myChart').getContext('2d');
         const chart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: [], // Timestamps or indices
                 datasets: [{
                     label: 'Temperature (°C)',
                     borderColor: 'rgb(255, 99, 132)',
@@ -35,9 +38,15 @@
                                 fetch('/data')
                                     .then(response => response.json())
                                     .then(data => {
-                                        chart.data.labels.push(new Date().toLocaleTimeString());
-                                        chart.data.datasets[0].data.push(data.temperature);
-                                        chart.data.datasets[1].data.push(data.humidity);
+                                        const now = Date.now();
+                                        chart.data.datasets[0].data.push({
+                                            x: now,
+                                            y: data.temperature
+                                        });
+                                        chart.data.datasets[1].data.push({
+                                            x: now,
+                                            y: data.humidity
+                                        });
                                     });
                             }
                         }
